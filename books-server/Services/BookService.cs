@@ -81,6 +81,28 @@ public class BookService
         };
 
         _dbContext.Books.Add(book);
+
+        book.Changes.Add(new BookChange
+        {
+            Book = book,
+            FieldName = "Book",
+            OldValue = null,
+            NewValue = book.Title,
+            Description = $"Book \"{book.Title}\" was created."
+        });
+
+        foreach (var author in authors.OrderBy(author => author.Name))
+        {
+            book.Changes.Add(new BookChange
+            {
+                Book = book,
+                FieldName = "Authors",
+                OldValue = null,
+                NewValue = author.Name,
+                Description = $"Author \"{author.Name}\" was added."
+            });
+        }
+
         await _dbContext.SaveChangesAsync();
 
         return await GetBookByIdAsync(book.Id)
@@ -90,7 +112,6 @@ public class BookService
     public async Task<BookDto?> UpdateBookAsync(Guid id, BookRequest request)
     {
         var book = await _dbContext.Books
-            .Include(book => book.BookAuthors)
             .FirstOrDefaultAsync(book => book.Id == id);
 
         if (book is null)
@@ -105,33 +126,167 @@ public class BookService
             throw new ArgumentException("At least one author must be selected.");
         }
 
-        var authors = await _dbContext.Authors
+        var requestedAuthors = await _dbContext.Authors
             .Where(author => authorIds.Contains(author.Id))
             .ToListAsync();
 
-        if (authors.Count != authorIds.Count)
+        if (requestedAuthors.Count != authorIds.Count)
         {
             throw new ArgumentException("One or more selected authors do not exist.");
         }
+
+        var currentAuthors = await _dbContext.BookAuthors
+            .AsNoTracking()
+            .Where(bookAuthor => bookAuthor.BookId == book.Id)
+            .Select(bookAuthor => bookAuthor.Author)
+            .ToListAsync();
+
+        var changes = new List<BookChange>();
+
+        changes.AddRange(CreateBasicFieldChanges(book, request));
+        changes.AddRange(CreateAuthorChanges(book.Id, currentAuthors, requestedAuthors));
 
         book.Title = request.Title.Trim();
         book.ShortDescription = request.ShortDescription.Trim();
         book.PublishDate = request.PublishDate;
 
-        book.BookAuthors.Clear();
+        var currentAuthorIds = currentAuthors
+            .Select(author => author.Id)
+            .ToHashSet();
 
-        foreach (var author in authors)
+        var requestedAuthorIds = requestedAuthors
+            .Select(author => author.Id)
+            .ToHashSet();
+
+        var authorIdsToRemove = currentAuthorIds
+            .Where(authorId => !requestedAuthorIds.Contains(authorId))
+            .ToList();
+
+        if (authorIdsToRemove.Count > 0)
         {
-            book.BookAuthors.Add(new BookAuthor
+            await _dbContext.BookAuthors
+                .Where(bookAuthor =>
+                    bookAuthor.BookId == book.Id &&
+                    authorIdsToRemove.Contains(bookAuthor.AuthorId))
+                .ExecuteDeleteAsync();
+        }
+
+        var authorsToAdd = requestedAuthors
+            .Where(author => !currentAuthorIds.Contains(author.Id))
+            .ToList();
+
+        foreach (var author in authorsToAdd)
+        {
+            _dbContext.BookAuthors.Add(new BookAuthor
             {
                 BookId = book.Id,
                 AuthorId = author.Id
             });
         }
 
+        _dbContext.BookChanges.AddRange(changes);
+
         await _dbContext.SaveChangesAsync();
 
         return await GetBookByIdAsync(book.Id);
+    }
+
+    private static List<BookChange> CreateBasicFieldChanges(Book book, BookRequest request)
+    {
+        var changes = new List<BookChange>();
+
+        var newTitle = request.Title.Trim();
+        var newShortDescription = request.ShortDescription.Trim();
+
+        if (book.Title != newTitle)
+        {
+            changes.Add(new BookChange
+            {
+                BookId = book.Id,
+                FieldName = "Title",
+                OldValue = book.Title,
+                NewValue = newTitle,
+                Description = $"Title was changed to \"{newTitle}\"."
+            });
+        }
+
+        if (book.ShortDescription != newShortDescription)
+        {
+            changes.Add(new BookChange
+            {
+                BookId = book.Id,
+                FieldName = "ShortDescription",
+                OldValue = book.ShortDescription,
+                NewValue = newShortDescription,
+                Description = "Short description was changed."
+            });
+        }
+
+        if (book.PublishDate != request.PublishDate)
+        {
+            changes.Add(new BookChange
+            {
+                BookId = book.Id,
+                FieldName = "PublishDate",
+                OldValue = book.PublishDate.ToString("yyyy-MM-dd"),
+                NewValue = request.PublishDate.ToString("yyyy-MM-dd"),
+                Description = $"Publish date was changed to {request.PublishDate:yyyy-MM-dd}."
+            });
+        }
+
+        return changes;
+    }
+
+    private static List<BookChange> CreateAuthorChanges(
+    Guid bookId,
+    List<Author> currentAuthors,
+    List<Author> requestedAuthors)
+    {
+        var changes = new List<BookChange>();
+
+        var currentAuthorIds = currentAuthors
+            .Select(author => author.Id)
+            .ToHashSet();
+
+        var requestedAuthorIds = requestedAuthors
+            .Select(author => author.Id)
+            .ToHashSet();
+
+        var addedAuthors = requestedAuthors
+            .Where(author => !currentAuthorIds.Contains(author.Id))
+            .OrderBy(author => author.Name)
+            .ToList();
+
+        var removedAuthors = currentAuthors
+            .Where(author => !requestedAuthorIds.Contains(author.Id))
+            .OrderBy(author => author.Name)
+            .ToList();
+
+        foreach (var author in addedAuthors)
+        {
+            changes.Add(new BookChange
+            {
+                BookId = bookId,
+                FieldName = "Authors",
+                OldValue = null,
+                NewValue = author.Name,
+                Description = $"Author \"{author.Name}\" was added."
+            });
+        }
+
+        foreach (var author in removedAuthors)
+        {
+            changes.Add(new BookChange
+            {
+                BookId = bookId,
+                FieldName = "Authors",
+                OldValue = author.Name,
+                NewValue = null,
+                Description = $"Author \"{author.Name}\" was removed."
+            });
+        }
+
+        return changes;
     }
 
     private static BookDto MapBookToDto(Book book)
