@@ -2,7 +2,7 @@
 
 public class BookDto
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string Title { get; set; } = string.Empty;
 
@@ -10,5 +10,5 @@ public class BookDto
 
     public DateOnly PublishDate { get; set; }
 
-    public List<string> Authors { get; set; } = new();
+    public List<AuthorDto> Authors { get; set; } = new();
 }

@@ -14,5 +14,6 @@ public class BookRequest
     [Required]
     public DateOnly PublishDate { get; set; }
 
-    public List<string> Authors { get; set; } = new();
+    [MinLength(1, ErrorMessage = "At least one author must be selected.")]
+    public List<Guid> AuthorIds { get; set; } = new();
 }

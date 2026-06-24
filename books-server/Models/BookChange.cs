@@ -2,9 +2,9 @@
 
 public class BookChange
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-    public int BookId { get; set; }
+    public Guid BookId { get; set; }
 
     public Book Book { get; set; } = null!;
 
