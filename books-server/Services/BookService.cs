@@ -191,6 +191,71 @@ public class BookService
         return await GetBookByIdAsync(book.Id);
     }
 
+    public async Task<PagedResult<BookChangeDto>?> GetBookChangesAsync(
+    Guid bookId,
+    BookChangeQueryParameters queryParameters)
+    {
+        var bookExists = await _dbContext.Books
+            .AsNoTracking()
+            .AnyAsync(book => book.Id == bookId);
+
+        if (!bookExists)
+        {
+            return null;
+        }
+
+        var page = queryParameters.Page < 1 ? 1 : queryParameters.Page;
+        var pageSize = queryParameters.PageSize < 1 ? 10 : queryParameters.PageSize;
+
+        if (pageSize > 50)
+        {
+            pageSize = 50;
+        }
+
+        var query = _dbContext.BookChanges
+            .AsNoTracking()
+            .Where(change => change.BookId == bookId);
+
+        if (!string.IsNullOrWhiteSpace(queryParameters.FieldName))
+        {
+            var fieldName = queryParameters.FieldName.Trim();
+
+            query = query.Where(change => change.FieldName == fieldName);
+        }
+
+        var sortDirection = queryParameters.SortDirection.ToLower();
+
+        query = sortDirection == "asc"
+            ? query.OrderBy(change => change.ChangedAt)
+            : query.OrderByDescending(change => change.ChangedAt);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(change => new BookChangeDto
+            {
+                Id = change.Id,
+                BookId = change.BookId,
+                ChangedAt = change.ChangedAt,
+                FieldName = change.FieldName,
+                OldValue = change.OldValue,
+                NewValue = change.NewValue,
+                Description = change.Description
+            })
+            .ToListAsync();
+
+        return new PagedResult<BookChangeDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
+    }
+
     private static List<BookChange> CreateBasicFieldChanges(Book book, BookRequest request)
     {
         var changes = new List<BookChange>();

@@ -88,4 +88,19 @@ public class BooksController : ControllerBase
             });
         }
     }
+
+    [HttpGet("{id:guid}/changes")]
+    public async Task<ActionResult<PagedResult<BookChangeDto>>> GetBookChanges(
+    Guid id,
+    [FromQuery] BookChangeQueryParameters queryParameters)
+    {
+        var changes = await _bookService.GetBookChangesAsync(id, queryParameters);
+
+        if (changes is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(changes);
+    }
 }
