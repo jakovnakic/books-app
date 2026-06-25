@@ -15,3 +15,10 @@ body {
   font-size: 1.6rem;
   color: #000;
 }
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  font-weight: 500;
+}
