@@ -12,6 +12,9 @@ const theme = createTheme({
   palette: {
     mode: "light",
   },
+  typography: {
+    htmlFontSize: 10,
+  },
 });
 
 ReactDOM.createRoot(document.getElementById("root")).render(

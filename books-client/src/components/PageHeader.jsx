@@ -1,7 +1,9 @@
+import styles from "../styles/PageHeader.module.scss";
+
 const PageHeader = () => {
   return (
-    <header>
-      <h1>Books App</h1>
+    <header className={styles["bar"]}>
+      <h1 className={styles["bar__heading"]}>Books App</h1>
     </header>
   );
 };
