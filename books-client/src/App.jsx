@@ -1,11 +1,14 @@
+import { Route, Routes } from "react-router-dom";
+import AppLayout from "./layouts/AppLayout";
+import BooksPage from "./pages/BooksPage";
+
 const App = () => {
   return (
-    <>
-      <div>
-        <h1>Books app</h1>
-        <div>Books content...</div>
-      </div>
-    </>
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<BooksPage />} />
+      </Route>
+    </Routes>
   );
 };
 
