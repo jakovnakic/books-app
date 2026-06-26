@@ -37,6 +37,7 @@ const BookChangesTable = ({ changes }) => {
       columns={columns}
       getRowId={(row) => row.id}
       disableRowSelectionOnClick
+      hideFooter
       sx={{
         "& .MuiDataGrid-columnHeaderTitle": {
           fontWeight: 700,
