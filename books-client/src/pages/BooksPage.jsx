@@ -39,7 +39,7 @@ const BooksPage = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: books = [], isLoading } = useQuery({
+  const { data: books = [], isLoading: isLoadingBooks } = useQuery({
     queryKey: ["books"],
     queryFn: getBooks,
   });
@@ -89,8 +89,6 @@ const BooksPage = () => {
     createBookMutation.mutate(bookFormData);
   };
 
-  if (!isLoading && books.length == 0) return <p>No books found...</p>;
-
   return (
     <>
       <div className={styles["books-page"]}>
@@ -102,7 +100,11 @@ const BooksPage = () => {
             Add Book
           </Button>
         </header>
-        <BooksTable books={books} onEditBook={handleEditBook} />
+        {!isLoadingBooks && books.length > 0 ? (
+          <BooksTable books={books} onEditBook={handleEditBook} />
+        ) : (
+          <p>No books found...</p>
+        )}
       </div>
       <BookFormDialog
         isOpen={isBookDialogOpen}
