@@ -20,5 +20,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  font-size: 1.6rem;
   font-weight: 500;
 }

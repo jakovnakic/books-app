@@ -8,6 +8,9 @@ import {
 } from "@mui/material";
 import AppDialog from "../components/AppDialog";
 import styles from "../styles/BookFormDialog.module.scss";
+import { useQuery } from "@tanstack/react-query";
+import { getBookChanges } from "../api/booksApi";
+import BookChangesTable from "./BookChangesTable";
 
 const initialState = {
   title: "",
@@ -37,6 +40,18 @@ const reducer = (state, action) => {
 const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { title, shortDescription, publishDate, authorIds } = state;
+
+  const { data: changesResult = {} } = useQuery({
+    queryKey: ["bookChanges", book?.id],
+    queryFn: () =>
+      getBookChanges(book.id, {
+        page: 1,
+        pageSize: 10,
+        sortDirection: "desc",
+      }),
+    enabled: isOpen && mode === "edit" && !!book?.id,
+  });
+  const changes = changesResult.items ?? [];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -79,6 +94,7 @@ const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
       isOpen={isOpen}
       title={mode === "edit" ? "Edit Book" : "Add Book"}
       onClose={onClose}
+      size="large"
     >
       <div className={styles["book-form-dialog"]}>
         <div className="input-group">
@@ -110,6 +126,7 @@ const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
           <TextField
             name="publishDate"
             type="date"
+            size="small"
             value={publishDate}
             onChange={handleChangeValue}
             fullWidth
@@ -120,7 +137,7 @@ const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
         </div>
         <div className="input-group">
           <span>Authors</span>
-          <FormControl fullWidth>
+          <FormControl fullWidth size="small">
             <Select
               name="authorIds"
               multiple
@@ -136,7 +153,7 @@ const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
             </Select>
           </FormControl>
         </div>
-        <div className={styles["action-buttons"]}>
+        <section className={styles["action-buttons"]}>
           <Button
             variant="contained"
             disabled={
@@ -153,7 +170,17 @@ const BookFormDialog = ({ isOpen, mode, book, authors, onClose, onSave }) => {
           <Button onClick={onClose} variant="outlined" size="small">
             Cancel
           </Button>
-        </div>
+        </section>
+        {mode === "edit" && (
+          <section className={styles["history"]}>
+            <h2 className={styles["history__title"]}>History of changes</h2>
+            {changes.length === 0 ? (
+              <p>No changes recorded yet.</p>
+            ) : (
+              <BookChangesTable changes={changes} />
+            )}
+          </section>
+        )}
       </div>
     </AppDialog>
   );
